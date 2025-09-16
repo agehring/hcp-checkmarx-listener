@@ -24,3 +24,5 @@ Add config file and command-line flag parsing for proxy and â€œbreak deploymentâ
 Dockerfile
 
 Create a secure, multi-stage Dockerfile for the service.
+
+ou can now extend the worker to handle file downloads, Checkmarx API calls, or other processing logic as needed. Let me know your next step!":q

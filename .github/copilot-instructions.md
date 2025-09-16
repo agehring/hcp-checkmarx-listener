@@ -155,7 +155,7 @@ A Go-based web service that integrates HCP Terraform with Checkmarx One for Infr
       {
   "payload_version": 1,
   "stage": "post_plan",
-  "access_token": "4QEuyyxug1f2rw.atlasv1.iDyxqhXGVZ0ykes53YdQyHyYtFOrdAWNBxcVUgWvzb64NFHjcquu8gJMEdUwoSLRu4Q",
+  "access_token": "",
   "capabilities": {
     "outcomes": true
   },

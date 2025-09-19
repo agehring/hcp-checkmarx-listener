@@ -106,19 +106,10 @@ jobs:
         WORKDIR /app
 
         # Copy the binary from builder stage
-        COPY --from=builder /app/main .
-
-        # Copy ca-certificates from builder
-        COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
-        # Create app directory with proper permissions for OpenShift
-        RUN chmod +x /app/main && \
-            chgrp -R 0 /app && \
-            chmod -R g=u /app && \
-            chmod g=u /etc/passwd
+        COPY --from=builder /app/main /app/main
 
         # OpenShift runs containers with arbitrary UIDs, so don't create specific user
-        # The container will run with a random UID that's part of the root group
+        # Chainguard images are designed to work with arbitrary UIDs out of the box
 
         # Expose port 8080 (OpenShift default)
         EXPOSE 8080
@@ -127,15 +118,8 @@ jobs:
         ENV GIN_MODE=release \
             PORT=8080
 
-        # Use numeric user ID for OpenShift compatibility
-        USER 1001
-
-        # Health check
-        HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-            CMD curl -f http://localhost:8080/health || exit 1
-
         # Run the application
-        ENTRYPOINT ["./main"]
+        ENTRYPOINT ["/app/main"]
         EOF
         
     - name: Build and push OpenShift image

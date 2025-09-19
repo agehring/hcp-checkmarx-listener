@@ -1,0 +1,41 @@
+# Chainguard-based Dockerfile with maximum security
+# Build stage - using Chainguard Go development image
+FROM cgr.dev/chainguard/go:latest-dev AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod files for better caching
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application with optimizations
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -a -installsuffix cgo \
+    -ldflags '-extldflags "-static" -s -w' \
+    -trimpath \
+    -o main ./cmd
+
+# Final stage - using Chainguard static image (most secure)
+FROM cgr.dev/chainguard/static:latest
+
+# Copy only the binary
+COPY --from=builder /app/main /main
+
+# Expose port 8080
+EXPOSE 8080
+
+# Set environment variables
+ENV GIN_MODE=release
+ENV PORT=8080
+
+# Use the nonroot user provided by Chainguard
+USER 65532:65532
+
+# Run the application
+ENTRYPOINT ["/main"]

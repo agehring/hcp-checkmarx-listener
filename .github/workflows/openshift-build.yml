@@ -65,18 +65,8 @@ jobs:
     - name: Create OpenShift-optimized Dockerfile
       run: |
         cat > Dockerfile.openshift << 'EOF'
-        # Build stage - using Debian to avoid Alpine SQLite issues
-        FROM golang:1.23-bullseye AS builder
-
-        # Remove SQLite and install minimal requirements
-        RUN apt-get update && \
-            apt-get remove -y --purge sqlite3 libsqlite3-0 libsqlite3-dev 2>/dev/null || true && \
-            apt-get install -y --no-install-recommends \
-            ca-certificates \
-            git \
-            tzdata \
-            && rm -rf /var/lib/apt/lists/* \
-            && update-ca-certificates
+        # Build stage - using Chainguard Go image for security
+        FROM cgr.dev/chainguard/go:latest-dev AS builder
 
         # Set working directory
         WORKDIR /app
@@ -95,8 +85,8 @@ jobs:
             -a -installsuffix cgo -ldflags '-extldflags "-static"' \
             -o main ./cmd
 
-        # Final stage - using Red Hat UBI for OpenShift compatibility
-        FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+        # Final stage - using Chainguard glibc image for OpenShift compatibility
+        FROM cgr.dev/chainguard/glibc-dynamic:latest
 
         # Add OpenShift-specific labels
         LABEL name="hcp-checkmarx-listener" \
@@ -111,12 +101,6 @@ jobs:
               io.openshift.tags="terraform,checkmarx,security,iac,scanning" \
               io.openshift.min-memory="256Mi" \
               io.openshift.min-cpu="100m"
-
-        # Install ca-certificates and timezone data with security updates
-        RUN microdnf update -y && \
-            microdnf install -y ca-certificates tzdata curl && \
-            microdnf upgrade -y && \
-            microdnf clean all
 
         # Set working directory
         WORKDIR /app

@@ -1,0 +1,9 @@
+{
+  "checkmarx_token": "dummy-token-for-testing",
+  "checkmarx_tenant": "dummy-tenant",
+  "checkmarx_region": "US",
+  "listen_port": 8443,
+  "tls_enabled": true,
+  "tls_self_signed": true,
+  "debug": true
+}

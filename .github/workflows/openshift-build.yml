@@ -1,0 +1,307 @@
+name: OpenShift CRI-O Build and Push
+
+on:
+  push:
+    branches: [ main, pre-release, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, pre-release ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}-openshift
+
+jobs:
+  openshift-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata for OpenShift
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+        labels: |
+          org.opencontainers.image.title=HCP Terraform Checkmarx One Integration (OpenShift)
+          org.opencontainers.image.description=OpenShift-optimized run task integration between HCP Terraform and Checkmarx One for IaC scanning
+          org.opencontainers.image.vendor=Checkmarx
+          org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/README.md
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          # OpenShift-specific labels
+          io.openshift.expose-services=8080:http
+          io.openshift.tags=terraform,checkmarx,security,iac,scanning
+          io.k8s.description=HCP Terraform integration with Checkmarx One for Infrastructure as Code security scanning
+          io.k8s.display-name=HCP Terraform Checkmarx Integration
+          io.openshift.min-memory=256Mi
+          io.openshift.min-cpu=100m
+          
+    - name: Create OpenShift-optimized Dockerfile
+      run: |
+        cat > Dockerfile.openshift << 'EOF'
+        # Build stage
+        FROM golang:1.23-alpine AS builder
+
+        # Install git and ca-certificates (for SSL/TLS)
+        RUN apk update && apk add --no-cache git ca-certificates tzdata && update-ca-certificates
+
+        # Set working directory
+        WORKDIR /app
+
+        # Copy go mod files
+        COPY go.mod go.sum ./
+
+        # Download dependencies
+        RUN go mod download
+
+        # Copy source code
+        COPY . .
+
+        # Build the application for Linux with static linking
+        RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+            -a -installsuffix cgo -ldflags '-extldflags "-static"' \
+            -o main ./cmd
+
+        # Final stage - using Red Hat UBI for OpenShift compatibility
+        FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+        # Add OpenShift-specific labels
+        LABEL name="hcp-checkmarx-listener" \
+              vendor="Checkmarx" \
+              version="1.0" \
+              release="1" \
+              summary="HCP Terraform Checkmarx One Integration" \
+              description="OpenShift-optimized run task integration between HCP Terraform and Checkmarx One for IaC scanning" \
+              io.k8s.description="HCP Terraform integration with Checkmarx One for Infrastructure as Code security scanning" \
+              io.k8s.display-name="HCP Terraform Checkmarx Integration" \
+              io.openshift.expose-services="8080:http" \
+              io.openshift.tags="terraform,checkmarx,security,iac,scanning" \
+              io.openshift.min-memory="256Mi" \
+              io.openshift.min-cpu="100m"
+
+        # Install ca-certificates and timezone data
+        RUN microdnf update -y && \
+            microdnf install -y ca-certificates tzdata curl && \
+            microdnf clean all
+
+        # Set working directory
+        WORKDIR /app
+
+        # Copy the binary from builder stage
+        COPY --from=builder /app/main .
+
+        # Copy ca-certificates from builder
+        COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+        # Create app directory with proper permissions for OpenShift
+        RUN chmod +x /app/main && \
+            chgrp -R 0 /app && \
+            chmod -R g=u /app && \
+            chmod g=u /etc/passwd
+
+        # OpenShift runs containers with arbitrary UIDs, so don't create specific user
+        # The container will run with a random UID that's part of the root group
+
+        # Expose port 8080 (OpenShift default)
+        EXPOSE 8080
+
+        # Set environment variables
+        ENV GIN_MODE=release \
+            PORT=8080
+
+        # Use numeric user ID for OpenShift compatibility
+        USER 1001
+
+        # Health check
+        HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+            CMD curl -f http://localhost:8080/health || exit 1
+
+        # Run the application
+        ENTRYPOINT ["./main"]
+        EOF
+        
+    - name: Build and push OpenShift image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.openshift
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=openshift
+        cache-to: type=gha,mode=max,scope=openshift
+        provenance: true
+        sbom: true
+        
+    - name: Run OpenShift security scan with Trivy
+      uses: aquasecurity/trivy-action@master
+      if: github.event_name != 'pull_request'
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+        format: 'sarif'
+        output: 'trivy-openshift-results.sarif'
+        
+    - name: Upload OpenShift Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: github.event_name != 'pull_request'
+      with:
+        sarif_file: 'trivy-openshift-results.sarif'
+        category: 'openshift-security-scan'
+        
+    - name: Generate OpenShift SBOM
+      uses: anchore/sbom-action@v0
+      if: github.event_name != 'pull_request'
+      with:
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+        format: spdx-json
+        output-file: sbom-openshift.spdx.json
+        
+    - name: Upload OpenShift Software Bill of Materials as artifact
+      uses: actions/upload-artifact@v4
+      if: github.event_name != 'pull_request'
+      with:
+        name: terraform-hcp-checkmarx-openshift-dependencies-${{ github.sha }}
+        path: sbom-openshift.spdx.json
+        retention-days: 30
+        
+    - name: Create OpenShift deployment manifests
+      if: github.event_name != 'pull_request'
+      run: |
+        mkdir -p k8s/openshift
+        cat > k8s/openshift/deployment.yaml << 'EOF'
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: hcp-checkmarx-listener
+          labels:
+            app: hcp-checkmarx-listener
+            version: ${{ steps.meta.outputs.version }}
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app: hcp-checkmarx-listener
+          template:
+            metadata:
+              labels:
+                app: hcp-checkmarx-listener
+                version: ${{ steps.meta.outputs.version }}
+            spec:
+              containers:
+              - name: hcp-checkmarx-listener
+                image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+                ports:
+                - containerPort: 8080
+                  protocol: TCP
+                env:
+                - name: PORT
+                  value: "8080"
+                - name: GIN_MODE
+                  value: "release"
+                resources:
+                  limits:
+                    memory: 512Mi
+                    cpu: 500m
+                  requests:
+                    memory: 256Mi
+                    cpu: 100m
+                livenessProbe:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                readinessProbe:
+                  httpGet:
+                    path: /health
+                    port: 8080
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
+                  runAsUser: 1001
+                  seccompProfile:
+                    type: RuntimeDefault
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: hcp-checkmarx-listener
+          labels:
+            app: hcp-checkmarx-listener
+        spec:
+          selector:
+            app: hcp-checkmarx-listener
+          ports:
+          - name: http
+            port: 8080
+            targetPort: 8080
+            protocol: TCP
+          type: ClusterIP
+        ---
+        apiVersion: route.openshift.io/v1
+        kind: Route
+        metadata:
+          name: hcp-checkmarx-listener
+          labels:
+            app: hcp-checkmarx-listener
+        spec:
+          to:
+            kind: Service
+            name: hcp-checkmarx-listener
+          port:
+            targetPort: http
+          tls:
+            termination: edge
+            insecureEdgeTerminationPolicy: Redirect
+        EOF
+        
+    - name: Build Summary
+      run: |
+        if [ "${{ github.event_name }}" != "pull_request" ]; then
+          echo "✅ OpenShift image built and pushed to ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          echo "✅ Security scanning and SBOM generation completed"
+        else
+          echo "✅ OpenShift image built successfully (PR - no push)"
+          echo "ℹ️  Image will be pushed when merged to main branch"
+        fi
+        
+    - name: Upload OpenShift manifests as artifact
+      uses: actions/upload-artifact@v4
+      if: github.event_name != 'pull_request'
+      with:
+        name: terraform-hcp-checkmarx-openshift-manifests-${{ github.sha }}
+        path: k8s/openshift/
+        retention-days: 30

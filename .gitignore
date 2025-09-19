@@ -1,0 +1,184 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+main
+hcp-checkmarx-listener
+hcp-checkmarx-listener.exe
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# Build directories and artifacts
+build/
+dist/
+bin/
+target/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+*.logs
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Secret files and configuration
+secrets.json
+secrets.yaml
+secrets.yml
+config.local.json
+config.local.yaml
+config.local.yml
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Terraform files (if any)
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+
+# Docker files
+.dockerignore
+
+# Kubernetes secrets
+*-secret.yaml
+*-secret.yml
+secrets/
+
+# Test configuration files with sensitive data
+test-config.json
+test-secrets.json
+*-credentials.json
+*-auth.json
+
+# Local development files
+local/
+.local/
+dev/
+.dev/
+
+# Cache directories
+.cache/
+node_modules/
+.npm/
+
+# Go module cache
+go.sum.backup
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Archives
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated documentation
+doc/html/
+doc/latex/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Core dumps
+core.*
+
+# MacOS specific
+.AppleDouble
+.LSOverride
+Icon?
+
+# Windows specific
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux specific
+*~
+.directory
+.Trash-*
+
+# Application specific
+checkmarx-config.json
+cx-config.json
+hcp-config.json
+terraform-config.json
+
+# Test artifacts
+testdata/output/
+test-results/
+test-reports/

@@ -1,0 +1,126 @@
+# .goreleaser.yml
+project_name: hcp-checkmarx-listener
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: hcp-checkmarx-listener
+    main: ./cmd
+    binary: hcp-checkmarx-listener
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    builds:
+      - hcp-checkmarx-listener
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE*
+      - CONFIGURE.md
+      - docs/**/*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^build:'
+      - '^style:'
+      - '^refactor:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: 'New Features'
+      regexp: '^feat'
+      order: 0
+    - title: 'Security Updates'
+      regexp: '^security'
+      order: 1
+    - title: 'Bug Fixes'
+      regexp: '^fix'
+      order: 2
+    - title: 'Performance Improvements'
+      regexp: '^perf'
+      order: 3
+    - title: 'Others'
+      order: 999
+
+release:
+  github:
+    owner: "{{ .Env.GITHUB_REPOSITORY_OWNER }}"
+    name: "{{ .ProjectName }}"
+  name_template: "Release {{.Version}}"
+  footer: |
+    ## Container Images
+    
+    **Docker (Multi-arch):**
+    ```bash
+    docker pull ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{.Version}}
+    ```
+    
+    **OpenShift CRI-O:**
+    ```bash
+    docker pull quay.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/hcp-checkmarx-listener-openshift:{{.Version}}
+    ```
+    
+    ## Verification
+    
+    All container images are signed with [Cosign](https://docs.sigstore.dev/cosign/overview/) and include SLSA provenance attestations.
+    
+    **Verify signatures:**
+    ```bash
+    cosign verify ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{.Version}} --certificate-identity-regexp=".*" --certificate-oidc-issuer-regexp=".*"
+    cosign verify quay.io/{{ .Env.GITHUB_REPOSITORY_OWNER }}/hcp-checkmarx-listener-openshift:{{.Version}} --certificate-identity-regexp=".*" --certificate-oidc-issuer-regexp=".*"
+    ```
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ProjectName }}_{{ .Version }}_sbom.spdx.json"
+
+signs:
+  - cmd: cosign
+    certificate: '${artifact}.pem'
+    signature: '${artifact}.sig'
+    args:
+      - sign-blob
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+      - --yes
+    artifacts: checksum

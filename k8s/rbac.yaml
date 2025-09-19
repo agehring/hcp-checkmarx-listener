@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hcp-checkmarx
+  labels:
+    name: hcp-checkmarx
+    openshift.io/cluster-monitoring: "true"
+  annotations:
+    openshift.io/description: "HCP Terraform Checkmarx Integration"
+    openshift.io/display-name: "HCP Checkmarx Listener"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hcp-checkmarx-listener
+  namespace: hcp-checkmarx
+  labels:
+    app: hcp-checkmarx-listener
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hcp-checkmarx-listener
+  namespace: hcp-checkmarx
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hcp-checkmarx-listener
+  namespace: hcp-checkmarx
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hcp-checkmarx-listener
+subjects:
+- kind: ServiceAccount
+  name: hcp-checkmarx-listener
+  namespace: hcp-checkmarx
+---
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: hcp-checkmarx-scc
+  annotations:
+    kubernetes.io/description: "SCC for HCP Checkmarx Listener with restricted privileges"
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: null
+defaultAddCapabilities: null
+requiredDropCapabilities:
+- ALL
+allowedFlexVolumes: null
+defaultAllowPrivilegeEscalation: false
+forbiddenSysctls:
+- "*"
+fsGroup:
+  type: MustRunAs
+  ranges:
+  - min: 1
+    max: 65534
+readOnlyRootFilesystem: true
+runAsUser:
+  type: MustRunAsRange
+  uidRangeMin: 1000
+  uidRangeMax: 65534
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: MustRunAs
+  ranges:
+  - min: 1
+    max: 65534
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret
+users:
+- system:serviceaccount:hcp-checkmarx:hcp-checkmarx-listener

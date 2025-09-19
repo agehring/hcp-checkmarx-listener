@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hcp-checkmarx-config
+  namespace: hcp-checkmarx
+  labels:
+    app: hcp-checkmarx-listener
+data:
+  config.yaml: |
+    # HCP Terraform Checkmarx Integration Configuration
+    port: "8080"
+    checkmarx_base_url: "https://ast.checkmarx.net"
+    checkmarx_auth_url: "https://iam.checkmarx.net"
+    checkmarx_region: "US"
+    use_oauth: false
+    enable_policy_check: true
+    break_on_policy_violation: true
+    log_level: "info"
+    request_timeout: "60s"
+    max_workers: 5
+    queue_size: 100
+    
+  # Environment-specific overrides can be added here
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hcp-checkmarx-secrets
+  namespace: hcp-checkmarx
+  labels:
+    app: hcp-checkmarx-listener
+type: Opaque
+data:
+  # Base64 encoded secrets - these should be set during deployment
+  # Example: echo -n "your-secret" | base64
+  checkmarx_api_key: ""  # Set this to your base64-encoded Checkmarx API key
+  checkmarx_client_id: ""  # Set this if using OAuth
+  checkmarx_client_secret: ""  # Set this if using OAuth
+  hmac_secret: ""  # Set this to your base64-encoded HMAC secret for request validation

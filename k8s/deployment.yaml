@@ -36,8 +36,8 @@ spec:
           type: RuntimeDefault
       containers:
       - name: hcp-checkmarx-listener
-        image: hcp-checkmarx-listener:latest
-        imagePullPolicy: Always
+        image: hcp-checkmarx-listener:v1.0.0
+        imagePullPolicy: IfNotPresent
         ports:
         - name: http
           containerPort: 8080

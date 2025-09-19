@@ -9,7 +9,8 @@ set -e
 IMAGE_NAME="hcp-checkmarx-listener"
 REGISTRY="${REGISTRY:-quay.io}"
 NAMESPACE="${NAMESPACE:-your-org}"
-TAG="${TAG:-latest}"
+# Use semantic versioning instead of 'latest' for production deployments
+TAG="${TAG:-v1.0.0-dev}"
 FULL_IMAGE="${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}:${TAG}"
 
 # Build context
@@ -50,7 +51,7 @@ Usage: $0 [OPTIONS]
 OPTIONS:
     -h, --help          Show this help message
     -p, --push          Push image to registry after building
-    -t, --tag TAG       Specify image tag (default: latest)
+    -t, --tag TAG       Specify image tag (default: v1.0.0-dev, use semantic versioning)
     -r, --registry URL  Specify registry URL (default: quay.io)
     -n, --namespace NS  Specify namespace/organization (default: your-org)
     --no-cache          Build without using cache

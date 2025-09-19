@@ -120,15 +120,15 @@ func TestRetryOperation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := RetryOperation(tt.operation)
-			
+
 			if tt.expectSuccess && err != nil {
 				t.Errorf("RetryOperation() expected success but got error: %v", err)
 			}
-			
+
 			if !tt.expectSuccess && err == nil {
 				t.Errorf("RetryOperation() expected failure but got success")
 			}
-			
+
 			if tt.expectRetries && err != nil && !isRetryableError(err) {
 				// For operations that exhaust retries, the final error should mention attempts
 				if !strings.Contains(err.Error(), "failed after") {

@@ -31,30 +31,30 @@ This project uses [Chainguard Images](https://www.chainguard.dev/chainguard-imag
 
 ### Build Stage
 ```dockerfile
-FROM cgr.dev/chainguard/go:1.23@sha256:4d4b56f8858db8a0aebf4fdb2db4f5e5dfa1194b486f1cf5a606c78ff2ad95f9 AS builder
+FROM cgr.dev/chainguard/go:1.23 AS builder
 ```
 - Contains Go 1.23 toolchain and build dependencies
-- Pinned to specific digest for reproducible builds
+- Version-pinned for reproducible builds
 - Minimal base with security patches
 - No unnecessary packages or CVEs
 
 ### Runtime Stage (Static)
 ```dockerfile
-FROM cgr.dev/chainguard/static:20241219@sha256:5ff428f8a48241da4e78d1c31f6e1f92d4c725f4e8ba7ff44ef64cecac6fa47
+FROM cgr.dev/chainguard/static:20241219
 ```
 - No shell, no package manager
 - Only contains static libraries and certificates
 - Maximum security for static binaries
-- Pinned to specific date tag and digest
+- Date-based versioning for temporal tracking
 
 ### Runtime Stage (OpenShift)
 ```dockerfile
-FROM cgr.dev/chainguard/glibc-dynamic:20241219@sha256:b81f9ca0853f5c67b2bab29b5d9e5e3de45e3a983ece956ba93e36e8be6ed1d7
+FROM cgr.dev/chainguard/glibc-dynamic:20241219
 ```
 - Compatible with OpenShift security constraints
 - Includes glibc for dynamic linking
 - Maintains minimal attack surface
-- Pinned to specific date tag and digest
+- Date-based versioning for temporal tracking
 
 ## Security Benefits
 

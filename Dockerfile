@@ -1,5 +1,7 @@
-# Build stage - using Chainguard Go image for security (version pinned)
-FROM cgr.dev/chainguard/go:1.23 AS builder
+# Build stage - using Chainguard Go image for security 
+# NOTE: Using latest-dev as Chainguard provides current Go version builds
+# For production, consider pinning to specific digests: docker pull cgr.dev/chainguard/go:latest-dev && docker inspect
+FROM cgr.dev/chainguard/go:latest-dev AS builder
 
 # Set working directory
 WORKDIR /app
@@ -18,8 +20,10 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -a -installsuffix cgo -ldflags '-extldflags "-static"' \
     -o main ./cmd
 
-# Final stage - using Chainguard static image (most secure, zero CVEs, version pinned)
-FROM cgr.dev/chainguard/static:20241219
+# Final stage - using Chainguard static image (most secure, zero CVEs)
+# NOTE: Using latest as Chainguard maintains current secure static base
+# For production, consider pinning to specific digests: docker pull cgr.dev/chainguard/static:latest && docker inspect  
+FROM cgr.dev/chainguard/static:latest
 
 # Copy the binary from builder stage
 COPY --from=builder /app/main /app/main

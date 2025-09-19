@@ -66,7 +66,7 @@ jobs:
       run: |
         cat > Dockerfile.openshift << 'EOF'
         # Build stage - using Chainguard Go image for security
-        FROM cgr.dev/chainguard/go:1.23 AS builder
+        FROM cgr.dev/chainguard/go:latest-dev AS builder
 
         # Set working directory
         WORKDIR /app
@@ -86,7 +86,7 @@ jobs:
             -o main ./cmd
 
         # Final stage - using Chainguard glibc image for OpenShift compatibility
-        FROM cgr.dev/chainguard/glibc-dynamic:20241219
+        FROM cgr.dev/chainguard/glibc-dynamic:latest
 
         # Add OpenShift-specific labels
         LABEL name="hcp-checkmarx-listener" \

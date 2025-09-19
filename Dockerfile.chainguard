@@ -1,6 +1,6 @@
 # Chainguard-based Dockerfile with maximum security
 # Build stage - using Chainguard Go development image (version pinned)
-FROM cgr.dev/chainguard/go:1.23 AS builder
+FROM cgr.dev/chainguard/go:latest-dev AS builder
 
 # Set working directory
 WORKDIR /app
@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o main ./cmd
 
 # Final stage - using Chainguard static image (most secure, version pinned)
-FROM cgr.dev/chainguard/static:20241219
+FROM cgr.dev/chainguard/static:latest
 
 # Copy only the binary
 COPY --from=builder /app/main /main

@@ -235,18 +235,26 @@ func securityMiddleware(next http.Handler) http.Handler {
 			// Even for HTTP, set HSTS to indicate HTTPS is required for security
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
-		
+
 		// Additional security headers
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		
+
 		// Content Security Policy for API endpoints
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; object-src 'none'")
-		
+
 		next.ServeHTTP(w, r)
 	})
+}
+
+// writeErrorWithHSTS ensures HSTS header is set before writing error responses (for SAST compliance)
+func writeErrorWithHSTS(w http.ResponseWriter, statusCode int, message string) {
+	// Explicitly set HSTS header for error responses to satisfy SAST requirements
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+	w.WriteHeader(statusCode)
+	w.Write([]byte(message))
 }
 
 // loggingMiddleware logs incoming requests when debug is enabled, masking sensitive headers and safely logging bodies
@@ -634,8 +642,7 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 		if appConfig != nil && appConfig.Debug {
 			log.Printf("Method not allowed: %s %s", r.Method, r.URL.String())
 		}
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("Method not allowed; use POST for /api/run-task"))
+		writeErrorWithHSTS(w, http.StatusMethodNotAllowed, "Method not allowed; use POST for /api/run-task")
 		return
 	}
 
@@ -643,8 +650,7 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Unable to read request body"))
+		writeErrorWithHSTS(w, http.StatusBadRequest, "Unable to read request body")
 		return
 	}
 	// Reset body for any downstream readers
@@ -654,7 +660,7 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var payload api.RunTaskPayload
 	if err := json.Unmarshal(bodyBytes, &payload); err != nil {
 		log.Printf("Invalid payload: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+		writeErrorWithHSTS(w, http.StatusBadRequest, "Invalid payload")
 		return
 	}
 	if appConfig != nil && appConfig.Debug {
@@ -684,8 +690,7 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 			if appConfig != nil && appConfig.Debug {
 				log.Printf("DEBUG: 401 due to missing signature header.")
 			}
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Missing signature"))
+			writeErrorWithHSTS(w, http.StatusUnauthorized, "Missing signature")
 			return
 		}
 		if !hmac.ValidateSignature(bodyBytes, signature, appConfig.HMACKey) {
@@ -693,8 +698,7 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 			if appConfig != nil && appConfig.Debug {
 				log.Printf("DEBUG: 401 due to invalid HMAC signature. Payload: %s", string(bodyBytes))
 			}
-			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Invalid signature"))
+			writeErrorWithHSTS(w, http.StatusUnauthorized, "Invalid signature")
 			return
 		}
 		log.Printf("Security: HMAC validation successful for %s stage from %s", payload.Stage, r.RemoteAddr)
@@ -741,8 +745,7 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 	// Validate access token presence (required for callbacks)
 	if payload.AccessToken == "" {
 		log.Printf("Missing access token in payload from %s", r.RemoteAddr)
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Missing access token"))
+		writeErrorWithHSTS(w, http.StatusUnauthorized, "Missing access token")
 		return
 	}
 

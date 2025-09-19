@@ -151,12 +151,12 @@ func TestSecurityHeaders(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.path, nil)
-			
+
 			// Simulate TLS connection for HTTPS test
 			if tt.hasTLS {
 				req.TLS = &tls.ConnectionState{}
 			}
-			
+
 			w := httptest.NewRecorder()
 
 			// Apply security middleware to health handler
@@ -176,6 +176,56 @@ func TestSecurityHeaders(t *testing.T) {
 			expectedHSTS := "max-age=31536000; includeSubDomains"
 			if hstsHeader != expectedHSTS {
 				t.Errorf("Expected HSTS header: %s, got: %s", expectedHSTS, hstsHeader)
+			}
+		})
+	}
+}
+
+func TestWriteErrorWithHSTS(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		message    string
+	}{
+		{
+			name:       "Method not allowed error",
+			statusCode: http.StatusMethodNotAllowed,
+			message:    "Method not allowed; use POST for /api/run-task",
+		},
+		{
+			name:       "Bad request error",
+			statusCode: http.StatusBadRequest,
+			message:    "Invalid payload",
+		},
+		{
+			name:       "Unauthorized error",
+			statusCode: http.StatusUnauthorized,
+			message:    "Missing signature",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+
+			writeErrorWithHSTS(w, tt.statusCode, tt.message)
+
+			// Check status code
+			if w.Code != tt.statusCode {
+				t.Errorf("Expected status code %d, got %d", tt.statusCode, w.Code)
+			}
+
+			// Check HSTS header
+			hstsHeader := w.Header().Get("Strict-Transport-Security")
+			expectedHSTS := "max-age=31536000; includeSubDomains"
+			if hstsHeader != expectedHSTS {
+				t.Errorf("Expected HSTS header: %s, got: %s", expectedHSTS, hstsHeader)
+			}
+
+			// Check response body
+			actualMessage := w.Body.String()
+			if actualMessage != tt.message {
+				t.Errorf("Expected message: %s, got: %s", tt.message, actualMessage)
 			}
 		})
 	}

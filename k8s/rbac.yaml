@@ -23,13 +23,10 @@ kind: Role
 metadata:
   name: hcp-checkmarx-listener
   namespace: hcp-checkmarx
-rules:
-- apiGroups: [""]
-  resources: ["configmaps", "secrets"]
-  verbs: ["get", "list", "watch"]
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list"]
+rules: []
+# No permissions needed - application does not use Kubernetes API
+# Secrets and ConfigMaps are mounted as volumes, not accessed via API
+# This follows the principle of least privilege
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

@@ -105,9 +105,10 @@ jobs:
               io.openshift.min-memory="256Mi" \
               io.openshift.min-cpu="100m"
 
-        # Install ca-certificates and timezone data
+        # Install ca-certificates and timezone data with security updates
         RUN microdnf update -y && \
             microdnf install -y ca-certificates tzdata curl && \
+            microdnf upgrade -y && \
             microdnf clean all
 
         # Set working directory

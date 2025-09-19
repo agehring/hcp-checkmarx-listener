@@ -25,9 +25,7 @@ This project uses [Chainguard Images](https://www.chainguard.dev/chainguard-imag
 - **Use Case**: OpenShift compatibility with dynamic linking
 
 ### Alternative Options
-- **Dockerfile.chainguard**: Pure Chainguard implementation
-- **Dockerfile.scratch**: Ultra-minimal scratch-based image
-- **Dockerfile.distroless**: Previous distroless implementation
+- **Dockerfile.chainguard**: Pure Chainguard implementation for additional testing
 
 ## Chainguard Images Used
 

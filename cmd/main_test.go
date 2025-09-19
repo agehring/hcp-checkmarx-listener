@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -106,5 +107,77 @@ func TestHealthHandler(t *testing.T) {
 
 	if response["status"] != "ok" {
 		t.Errorf("Expected status 'ok', got '%s'", response["status"])
+	}
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		method   string
+		hasTLS   bool
+		expected map[string]string
+	}{
+		{
+			name:   "Security headers on HTTP health endpoint",
+			path:   "/health",
+			method: "GET",
+			hasTLS: false,
+			expected: map[string]string{
+				"X-Content-Type-Options":   "nosniff",
+				"X-Frame-Options":          "DENY",
+				"X-XSS-Protection":         "1; mode=block",
+				"Referrer-Policy":          "strict-origin-when-cross-origin",
+				"Content-Security-Policy":  "default-src 'none'; script-src 'none'; object-src 'none'",
+			},
+		},
+		{
+			name:   "Security headers on HTTPS health endpoint with HSTS",
+			path:   "/health",
+			method: "GET",
+			hasTLS: true,
+			expected: map[string]string{
+				"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+				"X-Content-Type-Options":    "nosniff",
+				"X-Frame-Options":           "DENY",
+				"X-XSS-Protection":          "1; mode=block",
+				"Referrer-Policy":           "strict-origin-when-cross-origin",
+				"Content-Security-Policy":   "default-src 'none'; script-src 'none'; object-src 'none'",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			
+			// Simulate TLS connection for HTTPS test
+			if tt.hasTLS {
+				req.TLS = &tls.ConnectionState{}
+			}
+			
+			w := httptest.NewRecorder()
+
+			// Apply security middleware to health handler
+			handler := securityMiddleware(http.HandlerFunc(healthHandler))
+			handler.ServeHTTP(w, req)
+
+			// Check all expected headers are present
+			for headerName, expectedValue := range tt.expected {
+				actualValue := w.Header().Get(headerName)
+				if actualValue != expectedValue {
+					t.Errorf("Expected header %s: %s, got: %s", headerName, expectedValue, actualValue)
+				}
+			}
+
+			// Ensure HSTS is only present for TLS connections
+			hstsHeader := w.Header().Get("Strict-Transport-Security")
+			if tt.hasTLS && hstsHeader == "" {
+				t.Error("Expected HSTS header for TLS connection, but it was missing")
+			}
+			if !tt.hasTLS && hstsHeader != "" {
+				t.Errorf("Expected no HSTS header for non-TLS connection, but got: %s", hstsHeader)
+			}
+		})
 	}
 }

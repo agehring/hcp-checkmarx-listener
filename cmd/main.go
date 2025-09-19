@@ -197,8 +197,9 @@ func main() {
 		log.Fatalf("Failed to setup TLS configuration: %v", err)
 	}
 
-	// Wrap default mux with logging middleware
+	// Wrap default mux with security and logging middleware
 	var handler http.Handler = http.DefaultServeMux
+	handler = securityMiddleware(handler)
 	handler = loggingMiddleware(handler)
 
 	// Create server with optional TLS
@@ -220,6 +221,27 @@ func main() {
 			log.Fatalf("Failed to start HTTP server: %v", err)
 		}
 	}
+}
+
+// securityMiddleware adds security headers including HSTS for production security compliance
+func securityMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// HSTS header for HTTPS connections - 1 year max-age with subdomains
+		if r.TLS != nil {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		
+		// Additional security headers
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		
+		// Content Security Policy for API endpoints
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'none'; object-src 'none'")
+		
+		next.ServeHTTP(w, r)
+	})
 }
 
 // loggingMiddleware logs incoming requests when debug is enabled, masking sensitive headers and safely logging bodies

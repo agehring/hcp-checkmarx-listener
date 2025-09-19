@@ -307,6 +307,7 @@ func maskHeader(key, value string) string {
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	// Only allow requests to /api/run-task and /health, return 418 for everything else
 	if r.URL.Path != "/api/run-task" && r.URL.Path != "/health" {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusTeapot) // 418 I'm a teapot
 		_ = json.NewEncoder(w).Encode(map[string]string{
@@ -317,6 +318,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 	// This should not be reached since specific handlers are registered for /api/run-task and /health
 	// But keeping it as a fallback
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusTeapot) // 418 I'm a teapot
 	_ = json.NewEncoder(w).Encode(map[string]string{
@@ -327,6 +329,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 // healthHandler returns a simple liveness response.
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -726,8 +729,7 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 			}()
 		}
 
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Stage not supported"))
+		writeErrorWithHSTS(w, http.StatusOK, "Stage not supported")
 		return
 	}
 
@@ -737,8 +739,7 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("DEBUG: Stage '%s' passed HMAC validation but is not supported. Returning 200.", payload.Stage)
 		}
 		log.Printf("Ignoring run task with unsupported stage '%s' from %s (supported: pre_apply, post_plan)", payload.Stage, r.RemoteAddr)
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Stage not processed; only pre_apply and post_plan are handled"))
+		writeErrorWithHSTS(w, http.StatusOK, "Stage not processed; only pre_apply and post_plan are handled")
 		return
 	}
 
@@ -767,11 +768,9 @@ func runTaskHandler(w http.ResponseWriter, r *http.Request) {
 	// Enqueue the job
 	select {
 	case JobQueue <- job:
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		writeErrorWithHSTS(w, http.StatusOK, "OK")
 	default:
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte("Queue full"))
+		writeErrorWithHSTS(w, http.StatusServiceUnavailable, "Queue full")
 	}
 }
 

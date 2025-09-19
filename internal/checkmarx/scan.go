@@ -441,9 +441,10 @@ func SubmitIaCScan(cx1client *Cx1ClientGo.Cx1Client, filePath, hcpTaskResultID, 
 
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
-	resp, err := httpclient.Client.Do(req)
+	// Use retry mechanism for scan submission (3 retries with exponential backoff)
+	resp, err := retryHTTPRequest(req, scanRequestJSON, 3, 2*time.Second)
 	if err != nil {
-		logger.Errorf("Failed to submit scan: %s", err)
+		logger.Errorf("Failed to submit scan after retries: %s", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -568,10 +569,10 @@ func FetchIaCFindings(cx1client *Cx1ClientGo.Cx1Client, scanID, checkmarxBaseURL
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("CorrelationId", scanID) // Use scanID as correlation ID
 
-		// Make request using the centralized HTTP client
-		resp, err := httpclient.Client.Do(req)
+		// Make request using the centralized HTTP client with retry logic
+		resp, err := retryHTTPRequest(req, nil, 3, 2*time.Second)
 		if err != nil {
-			return nil, fmt.Errorf("failed to execute request: %v", err)
+			return nil, fmt.Errorf("failed to execute request after retries: %v", err)
 		}
 		defer resp.Body.Close()
 

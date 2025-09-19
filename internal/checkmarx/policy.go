@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/Checkmarx-PS/hcp-checkmarx-listener/internal/httpclient"
 	"github.com/cxpsemea/Cx1ClientGo"
 )
 
@@ -60,9 +59,9 @@ func getScanStatus(cx1client *Cx1ClientGo.Cx1Client, scanID, checkmarxToken, che
 	}
 	// Use the SDK client's access token instead of the config token
 	req.Header.Set("Authorization", "Bearer "+cx1client.GetAccessToken())
-	resp, err := httpclient.Client.Do(req)
+	resp, err := retryHTTPRequest(req, nil, 3, 2*time.Second)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to get scan status after retries: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -107,9 +106,9 @@ func CheckPolicyViolation(cx1client *Cx1ClientGo.Cx1Client, scanID, checkmarxBas
 	// Use the SDK client's access token instead of the config token
 	req.Header.Set("Authorization", "Bearer "+cx1client.GetAccessToken())
 
-	resp, err := httpclient.Client.Do(req)
+	resp, err := retryHTTPRequest(req, nil, 3, 2*time.Second)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to check policy after retries: %w", err)
 	}
 	defer resp.Body.Close()
 

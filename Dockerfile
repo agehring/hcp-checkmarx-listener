@@ -1,8 +1,15 @@
-# Build stage
-FROM golang:1.23-alpine AS builder
+# Build stage - using Debian-based Go image and removing SQLite
+FROM golang:1.23-bullseye AS builder
 
-# Install git and ca-certificates (for SSL/TLS)
-RUN apk update && apk add --no-cache git ca-certificates tzdata && update-ca-certificates
+# Remove SQLite if present and install minimal requirements
+RUN apt-get update && \
+    apt-get remove -y --purge sqlite3 libsqlite3-0 libsqlite3-dev 2>/dev/null || true && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    git \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
 # Set working directory
 WORKDIR /app

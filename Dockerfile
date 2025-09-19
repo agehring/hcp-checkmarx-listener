@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o main ./cmd
 
 # Final stage - using Chainguard static image (most secure, zero CVEs, pinned version)
-FROM cgr.dev/chainguard/static:latest@sha256:5ff428f8a48241da4e78d1c31f6e1f92d4c725f4e8ba7ff44ef64cecac6fa47
+FROM cgr.dev/chainguard/static:20241219@sha256:5ff428f8a48241da4e78d1c31f6e1f92d4c725f4e8ba7ff44ef64cecac6fa47
 
 # Copy the binary from builder stage
 COPY --from=builder /app/main /app/main

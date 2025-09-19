@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o main ./cmd
 
 # Final stage - using Chainguard glibc-dynamic for OpenShift compatibility (pinned version)
-FROM cgr.dev/chainguard/glibc-dynamic:latest@sha256:b81f9ca0853f5c67b2bab29b5d9e5e3de45e3a983ece956ba93e36e8be6ed1d7
+FROM cgr.dev/chainguard/glibc-dynamic:20241219@sha256:b81f9ca0853f5c67b2bab29b5d9e5e3de45e3a983ece956ba93e36e8be6ed1d7
 
 # Add OpenShift-specific labels
 LABEL name="hcp-checkmarx-listener" \

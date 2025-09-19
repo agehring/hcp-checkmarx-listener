@@ -68,6 +68,7 @@ jobs:
         cache-to: type=gha,mode=max
         provenance: true
         sbom: true
+        no-cache: true
         
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master

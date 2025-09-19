@@ -124,11 +124,12 @@ func TestSecurityHeaders(t *testing.T) {
 			method: "GET",
 			hasTLS: false,
 			expected: map[string]string{
-				"X-Content-Type-Options":   "nosniff",
-				"X-Frame-Options":          "DENY",
-				"X-XSS-Protection":         "1; mode=block",
-				"Referrer-Policy":          "strict-origin-when-cross-origin",
-				"Content-Security-Policy":  "default-src 'none'; script-src 'none'; object-src 'none'",
+				"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+				"X-Content-Type-Options":    "nosniff",
+				"X-Frame-Options":           "DENY",
+				"X-XSS-Protection":          "1; mode=block",
+				"Referrer-Policy":           "strict-origin-when-cross-origin",
+				"Content-Security-Policy":   "default-src 'none'; script-src 'none'; object-src 'none'",
 			},
 		},
 		{
@@ -170,13 +171,11 @@ func TestSecurityHeaders(t *testing.T) {
 				}
 			}
 
-			// Ensure HSTS is only present for TLS connections
+			// Ensure HSTS is always present for security compliance
 			hstsHeader := w.Header().Get("Strict-Transport-Security")
-			if tt.hasTLS && hstsHeader == "" {
-				t.Error("Expected HSTS header for TLS connection, but it was missing")
-			}
-			if !tt.hasTLS && hstsHeader != "" {
-				t.Errorf("Expected no HSTS header for non-TLS connection, but got: %s", hstsHeader)
+			expectedHSTS := "max-age=31536000; includeSubDomains"
+			if hstsHeader != expectedHSTS {
+				t.Errorf("Expected HSTS header: %s, got: %s", expectedHSTS, hstsHeader)
 			}
 		})
 	}

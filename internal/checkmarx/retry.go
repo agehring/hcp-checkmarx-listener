@@ -90,3 +90,61 @@ func retryHTTPRequest(req *http.Request, body []byte, maxRetries int, baseDelay 
 	}
 	return nil, fmt.Errorf("network request failed after %d attempts: %w", maxRetries+1, lastErr)
 }
+
+// RetryOperation retries any operation that might fail due to network issues
+func RetryOperation(operation func() error) error {
+	debug := os.Getenv("DEBUG") == "1" || os.Getenv("DEBUG") == "true"
+	logger := log.New()
+	if debug {
+		logger.SetLevel(log.TraceLevel)
+	}
+
+	maxRetries := 3
+	baseDelay := 2 * time.Second
+	var lastErr error
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			// Calculate exponential backoff delay
+			delay := baseDelay * time.Duration(1<<uint(attempt-1))
+			if delay > 30*time.Second {
+				delay = 30 * time.Second // Cap at 30 seconds
+			}
+
+			if debug {
+				logger.Infof("Operation retry attempt %d/%d after %v delay", attempt, maxRetries, delay)
+			} else {
+				fmt.Printf("Operation retry attempt %d/%d after %v delay\n", attempt, maxRetries, delay)
+			}
+
+			time.Sleep(delay)
+		}
+
+		err := operation()
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+
+		// Only retry if it's a retryable network error
+		if !isRetryableError(err) {
+			if debug {
+				logger.Errorf("Non-retryable error, failing immediately: %s", err)
+			}
+			return err
+		}
+
+		if debug {
+			logger.Warnf("Retryable network error on attempt %d: %s", attempt+1, err)
+		} else {
+			fmt.Printf("Network error on attempt %d: %s\n", attempt+1, err)
+		}
+	}
+
+	// All retries exhausted
+	if debug {
+		logger.Errorf("All %d retry attempts exhausted, final error: %s", maxRetries+1, lastErr)
+	}
+	return fmt.Errorf("operation failed after %d attempts: %w", maxRetries+1, lastErr)
+}

@@ -81,16 +81,24 @@ func main() {
 		logger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp: true,
 		})
-		cx1client, err = Cx1ClientGo.NewAPIKeyClient(httpClient, appConfig.CheckmarxBaseURL, appConfig.CheckmarxBaseAuthURI, appConfig.CheckmarxTenant, appConfig.CheckmarxToken, logger)
+		// Create CheckmarxOne SDK client with retry logic for DNS timeout issues
+		err = checkmarx.RetryOperation(func() error {
+			var clientErr error
+			cx1client, clientErr = Cx1ClientGo.NewAPIKeyClient(httpClient, appConfig.CheckmarxBaseURL, appConfig.CheckmarxBaseAuthURI, appConfig.CheckmarxTenant, appConfig.CheckmarxToken, logger)
+			return clientErr
+		})
 		if err != nil {
-			log.Fatalf("Startup: failed to create CheckmarxOne SDK client: %v", err)
+			log.Fatalf("Startup: failed to create CheckmarxOne SDK client after retries: %v", err)
 		}
 		// Set custom User-Agent for SDK requests as well
 		cx1client.SetUserAgent("CxOne-HCP")
-		// Verify connectivity via SDK
-		_, err = cx1client.GetGroups()
+		// Verify connectivity via SDK with retry logic
+		err = checkmarx.RetryOperation(func() error {
+			_, groupsErr := cx1client.GetGroups()
+			return groupsErr
+		})
 		if err != nil {
-			log.Fatalf("Startup: Checkmarx One API Key authentication failed: %v", err)
+			log.Fatalf("Startup: Checkmarx One API Key authentication failed after retries: %v", err)
 		}
 		tenantInfo := appConfig.CheckmarxTenant
 		if tenantInfo == "" {

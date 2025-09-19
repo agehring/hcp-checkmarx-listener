@@ -18,13 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -a -installsuffix cgo -ldflags '-extldflags "-static"' \
     -o main ./cmd
 
-# Final stage - using Chainguard static image (most secure)
-FROM cgr.dev/chainguard/static:latest
-
-# Final stage - using Google's distroless image (no ncurses, minimal attack surface)
-FROM gcr.io/distroless/static-debian12:latest
-
-# Final stage - using Chainguard static image (most secure)
+# Final stage - using Chainguard static image (most secure, zero CVEs)
 FROM cgr.dev/chainguard/static:latest
 
 # Copy the binary from builder stage
